@@ -1,0 +1,170 @@
+<template>
+  <div class="page {{ pageAnim }}">
+    <text class="title">Flash Card</text>
+    <text class="deck">{{ deckName }}</text>
+
+    <div class="stats">
+      <div class="stat">
+        <text class="stat-num due">{{ due }}</text>
+        <text class="stat-label">đến hạn</text>
+      </div>
+      <div class="stat">
+        <text class="stat-num fresh">{{ fresh }}</text>
+        <text class="stat-label">thẻ mới</text>
+      </div>
+    </div>
+    <text class="progress">{{ learned }} / {{ total }} đã học</text>
+
+    <text class="btn btn-primary" if="{{ canStudy }}" @click="startStudy">Học ngay</text>
+    <text class="btn btn-disabled" else>Hết thẻ hôm nay</text>
+    <text class="btn" @click="openSettings">Cài đặt</text>
+  </div>
+</template>
+
+<style>
+.page {
+  flex-direction: column;
+  align-items: center;
+  width: 212px;
+  height: 520px;
+  background-color: #000000;
+  padding-top: 44px;
+  opacity: 1;
+  transition-property: opacity;
+  transition-duration: 180ms;
+  transition-timing-function: ease-in-out;
+}
+.page-hidden {
+  opacity: 0;
+}
+.title {
+  font-size: 26px;
+  color: #ffffff;
+}
+.deck {
+  font-size: 14px;
+  color: #8e8e93;
+  margin-top: 2px;
+}
+.stats {
+  flex-direction: row;
+  justify-content: space-around;
+  width: 200px;
+  margin-top: 22px;
+}
+.stat {
+  flex-direction: column;
+  align-items: center;
+  width: 96px;
+}
+.stat-num {
+  font-size: 44px;
+  color: #ffffff;
+}
+.due {
+  color: #f1c40f;
+}
+.fresh {
+  color: #3498db;
+}
+.stat-label {
+  font-size: 14px;
+  color: #8e8e93;
+}
+.progress {
+  font-size: 14px;
+  color: #8e8e93;
+  margin-top: 18px;
+}
+.btn {
+  width: 168px;
+  height: 52px;
+  margin-top: 14px;
+  border-radius: 28px;
+  background-color: #2c2c2e;
+  color: #ffffff;
+  font-size: 20px;
+  text-align: center;
+}
+.btn-primary {
+  background-color: #2ecc71;
+  color: #000000;
+  margin-top: 26px;
+}
+.btn-disabled {
+  background-color: #1c1c1e;
+  color: #636366;
+  margin-top: 26px;
+}
+</style>
+
+<script>
+import router from '@system.router'
+
+export default {
+  private: {
+    deckName: '',
+    due: 0,
+    fresh: 0,
+    learned: 0,
+    total: 0,
+    canStudy: false,
+    pageAnim: 'page-hidden'
+  },
+
+  onInit() {
+    this.deckName = this.$app.$def.container.deckMeta.name
+  },
+
+  onShow() {
+    this.refresh()
+    this.fadeIn()
+  },
+
+  onHide() {
+    this.pageAnim = 'page-hidden'
+  },
+
+  // --- page cross-fade -------------------------------------------------------
+  fadeIn() {
+    var self = this
+    this.pageAnim = 'page-hidden'
+    if (this.pageTimer) clearTimeout(this.pageTimer)
+    this.pageTimer = setTimeout(function () { self.pageAnim = '' }, 20)
+  },
+
+  leave(fn) {
+    var self = this
+    if (this.leaving) return
+    this.leaving = true
+    this.pageAnim = 'page-hidden'
+    if (this.pageTimer) clearTimeout(this.pageTimer)
+    this.pageTimer = setTimeout(function () {
+      self.leaving = false
+      fn()
+    }, 170)
+  },
+
+
+  refresh() {
+    var self = this
+    this.$app.$def.container.getHomeSummary().then(function (s) {
+      self.due = s.due
+      self.fresh = s.newAvailable
+      self.learned = s.learned
+      self.total = s.total
+      self.canStudy = s.due + s.newAvailable > 0
+    }).catch(function (e) {
+      console.error('home refresh failed: ' + e)
+    })
+  },
+
+  startStudy() {
+    this.leave(function () { router.push({ uri: '/pages/study' }) })
+  },
+
+  openSettings() {
+    this.leave(function () { router.push({ uri: '/pages/settings' }) })
+  }
+}
+</script>

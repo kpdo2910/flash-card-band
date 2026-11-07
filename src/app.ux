@@ -1,0 +1,18 @@
+<script>
+import { createContainer } from './infrastructure/vela/wiring.js'
+
+var container = createContainer()
+
+export default {
+  // Pages read this through this.$app.$def.container
+  container: container,
+
+  onCreate() {
+    console.info('Flash Card start, deck=' + container.deckMeta.name + ' (' + container.deckMeta.count + ' thẻ)')
+  },
+
+  onDestroy() {
+    console.info('Flash Card exit')
+  }
+}
+</script>

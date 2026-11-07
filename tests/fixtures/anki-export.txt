@@ -1,0 +1,10 @@
+#separator:tab
+#html:true
+#guid column:1
+#notetype column:2
+#tags column:6
+Kx9f2a	Japanese Vocab	日本[にほん]語[ご]	<b>tiếng Nhật</b><br>ngôn ngữ	[sound:nihongo.mp3]	n5 lang
+Qp3m7z	Japanese Vocab	 学校[がっこう]	trường&nbsp;học	[sound:gakkou.mp3]	n5
+Rt5n1b	Japanese Vocab	ありがとう	cảm ơn		n5
+Bad001	Japanese Vocab		không có mặt trước		n5
+Qp3m7z	Japanese Vocab	 学校[がっこう]	trùng guid		n5

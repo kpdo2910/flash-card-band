@@ -1,0 +1,56 @@
+{
+  "package": "com.kinkaze.cardband",
+  "name": "Flash Card",
+  "versionName": "0.1.0",
+  "versionCode": 1,
+  "minPlatformVersion": 1000,
+  "minAPILevel": 1,
+  "icon": "/presentation/images/icon.png",
+  "deviceTypeList": [
+    "watch"
+  ],
+  "features": [
+    {
+      "name": "system.router"
+    },
+    {
+      "name": "system.storage"
+    },
+    {
+      "name": "system.vibrator"
+    },
+    {
+      "name": "system.prompt"
+    },
+    {
+      "name": "system.device"
+    }
+  ],
+  "config": {
+    "logLevel": "warn",
+    "designWidth": 212
+  },
+  "router": {
+    "entry": "pages/home",
+    "pages": {
+      "pages/home": {
+        "component": "home"
+      },
+      "pages/study": {
+        "component": "study"
+      },
+      "pages/summary": {
+        "component": "summary"
+      },
+      "pages/settings": {
+        "component": "settings"
+      },
+      "pages/select": {
+        "component": "select"
+      }
+    }
+  },
+  "display": {
+    "backgroundColor": "#000000"
+  }
+}

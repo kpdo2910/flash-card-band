@@ -1,0 +1,584 @@
+<template>
+  <div class="page {{ pageAnim }}" @swipe="onSwipe" @touchstart="onTouchStart" @touchend="onTouchEnd">
+    <div class="safe-top"></div>
+
+    <!-- recall-time indicator -->
+    <div class="topline">
+      <text class="counter">{{ counter }}</text>
+      <text class="phase" style="color: {{ barColor }};">{{ phaseLabel }}</text>
+    </div>
+    <div class="bar-track">
+      <div class="bar-fill" style="width: {{ barPercent }}%; background-color: {{ barColor }};"></div>
+    </div>
+
+    <!-- card -->
+    <div class="card-area">
+      <div class="spacer" style="height: {{ spaceTop }}px;"></div>
+      <div class="card {{ cardAnim }}">
+        <block if="{{ resultLabel }}">
+          <text class="result-label">{{ resultLabel }}</text>
+          <text class="result-sub">{{ resultSub }}</text>
+        </block>
+        <block elif="{{ !flipped }}">
+          <text class="front" style="font-size: {{ frontSize }}px;">{{ front }}</text>
+          <text class="front-reading" if="{{ showReadingFront && reading }}">{{ reading }}</text>
+          <text class="hint">chạm để lật</text>
+        </block>
+        <block else>
+          <text class="reading" if="{{ reading }}">{{ reading }}</text>
+          <text class="back" for="{{ backLines }}" style="font-size: {{ backSize }}px;">{{ $item }}</text>
+          <text class="extra" if="{{ extra }}">{{ extra }}</text>
+        </block>
+      </div>
+      <div class="spacer" style="height: {{ spaceBottom }}px;"></div>
+    </div>
+
+    <!-- feedback / legend -->
+    <text class="feedback" style="color: {{ feedbackColor }};" if="{{ feedback }}">{{ feedback }}</text>
+    <text class="legend" else>{{ legend }}</text>
+    <div class="safe-bottom"></div>
+  </div>
+</template>
+
+<style>
+.page {
+  flex-direction: column;
+  align-items: center;
+  width: 212px;
+  height: 520px;
+  background-color: #000000;
+  opacity: 1;
+  transition-property: opacity;
+  transition-duration: 180ms;
+  transition-timing-function: ease-in-out;
+}
+.page-hidden {
+  opacity: 0;
+}
+.safe-top {
+  width: 212px;
+  height: 42px;
+}
+.safe-bottom {
+  width: 212px;
+  height: 34px;
+}
+.topline {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 136px;
+  height: 22px;
+}
+.counter {
+  font-size: 14px;
+  color: #8e8e93;
+}
+.phase {
+  font-size: 14px;
+  color: #2ecc71;
+}
+.bar-track {
+  width: 136px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background-color: #1c1c1e;
+}
+.bar-fill {
+  height: 6px;
+  border-radius: 3px;
+  background-color: #2ecc71;
+  transition-property: width, background-color;
+  transition-duration: 250ms;
+  transition-timing-function: linear;
+}
+.card-area {
+  flex: 1;
+  width: 212px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.spacer {
+  width: 212px;
+  height: 40px;
+  transition-property: height;
+  transition-duration: 220ms;
+  transition-timing-function: ease-in;
+}
+.card {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 172px;
+  height: 300px;
+  border-radius: 26px;
+  background-color: #1c1c1e;
+  opacity: 1;
+  transition-property: opacity, background-color;
+  transition-duration: 180ms;
+  transition-timing-function: ease-in-out;
+}
+.res-easy {
+  background-color: #1f9d55;
+}
+.res-good {
+  background-color: #c9a227;
+}
+.res-hard {
+  background-color: #d35400;
+}
+.res-again {
+  background-color: #c0392b;
+}
+.result-label {
+  font-size: 40px;
+  color: #ffffff;
+  text-align: center;
+  width: 156px;
+}
+.result-sub {
+  font-size: 16px;
+  color: #ffffff;
+  text-align: center;
+  width: 156px;
+  margin-top: 10px;
+}
+.fly-up {
+  opacity: 0;
+}
+.fly-down {
+  opacity: 0;
+}
+.card-hidden {
+  opacity: 0;
+}
+.flip-out {
+  opacity: 0.08;
+}
+.front {
+  font-size: 44px;
+  color: #ffffff;
+  text-align: center;
+  width: 156px;
+}
+.front-reading {
+  font-size: 18px;
+  color: #8e8e93;
+  margin-top: 8px;
+  text-align: center;
+  width: 156px;
+}
+.hint {
+  font-size: 14px;
+  color: #48484a;
+  margin-top: 24px;
+}
+.reading {
+  font-size: 26px;
+  color: #f1c40f;
+  text-align: center;
+  width: 156px;
+  margin-bottom: 10px;
+}
+.back {
+  font-size: 20px;
+  color: #ffffff;
+  text-align: center;
+  width: 156px;
+}
+.extra {
+  font-size: 15px;
+  color: #8e8e93;
+  text-align: center;
+  width: 156px;
+  margin-top: 10px;
+}
+.feedback {
+  font-size: 18px;
+  height: 24px;
+}
+.legend {
+  font-size: 14px;
+  height: 24px;
+  color: #48484a;
+}
+</style>
+
+<script>
+import router from '@system.router'
+import { gradeFromSwipe, SwipeDirection } from '../../domain/grading/gradingPolicy.js'
+import { createRecallTimer } from '../../domain/grading/recallTimer.js'
+import { timeBarState, PHASE_COLORS } from '../../presentation/timeBar.js'
+import { fitFontSize, fitTextBlock } from '../../presentation/textFit.js'
+import { gradeLabel, formatIntervalShort } from '../../presentation/formatters.js'
+import { Grade, GRADE_NAMES } from '../../domain/grading/grade.js'
+
+var FRONT_SIZES = [44, 36, 30, 24, 20]
+var BACK_SIZES = [24, 20, 18, 16, 14]
+var CARD_TEXT_WIDTH = 156
+var BACK_MAX_HEIGHT = 200
+var EXTRA_HEIGHT = 32
+var TICK_MS = 250
+var FEEDBACK_MS = 900
+var SWIPE_MIN_PX = 50
+var TAP_MAX_PX = 20
+var GESTURE_DEDUPE_MS = 400
+var RESULT_HOLD_MS = 650
+var FADE_MS = 200
+var CARD_IN_MS = 220
+var FLIP_HALF_MS = 150
+var SPACE_REST = 40
+var SPACE_SHIFT = 90
+
+export default {
+  private: {
+    // card
+    front: '',
+    reading: '',
+    extra: '',
+    backLines: [],
+    frontSize: 44,
+    backSize: 20,
+    flipped: false,
+    showReadingFront: false,
+    cardAnim: '',
+    resultLabel: '',
+    resultSub: '',
+    spaceTop: 40,
+    spaceBottom: 40,
+    // progress
+    counter: '',
+    total: 0,
+    done: 0,
+    // time bar
+    barPercent: 0,
+    barColor: '#2ecc71',
+    phaseLabel: '',
+    // feedback
+    feedback: '',
+    feedbackColor: '#ffffff',
+    legend: '',
+    pageAnim: 'page-hidden'
+  },
+
+  onInit() {
+    this.session = null
+    this.settings = null
+    this.recall = null // recall stopwatch of the card on screen
+    this.timer = null
+    this.feedbackTimer = null
+    this.animTimer = null
+    this.busy = false
+    this.animating = false
+    this.touchStart = null
+    this.lastGestureAt = 0
+    var self = this
+    var c = this.$app.$def.container
+    c.startStudySession().then(function (started) {
+      self.session = started.session
+      self.settings = started.settings
+      self.showReadingFront = started.settings.showReadingFront
+      self.total = started.session.remaining()
+      self.legend = self.settings.knownDirection === SwipeDirection.UP
+        ? '↑ thuộc   ↓ chưa thuộc'
+        : '↓ thuộc   ↑ chưa thuộc'
+      if (self.showCurrent()) self.playCardIn()
+    }).catch(function (e) {
+      console.error('startStudySession failed: ' + e)
+      router.back()
+    })
+  },
+
+  onShow() {
+    this.fadeIn()
+    // Screen woke up again: restart the clock for the card on screen, unless
+    // the learner had already flipped it (the recall time is then fixed).
+    if (this.session && this.session.current(this.now())) {
+      if (!this.recall || this.recall.isRunning()) {
+        this.recall = createRecallTimer(this.now())
+        this.startTicker()
+      }
+      this.updateBar()
+    }
+  },
+
+  // --- page cross-fade -------------------------------------------------------
+  fadeIn() {
+    var self = this
+    this.pageAnim = 'page-hidden'
+    if (this.pageTimer) clearTimeout(this.pageTimer)
+    this.pageTimer = setTimeout(function () { self.pageAnim = '' }, 20)
+  },
+
+  leave(fn) {
+    var self = this
+    if (this.leaving) return
+    this.leaving = true
+    this.pageAnim = 'page-hidden'
+    if (this.pageTimer) clearTimeout(this.pageTimer)
+    this.pageTimer = setTimeout(function () {
+      self.leaving = false
+      fn()
+    }, 170)
+  },
+
+
+  onHide() {
+    this.stopTicker()
+  },
+
+  onDestroy() {
+    this.stopTicker()
+    if (this.feedbackTimer) clearTimeout(this.feedbackTimer)
+    if (this.animTimer) clearTimeout(this.animTimer)
+  },
+
+  onBackPress() {
+    this.finish()
+    return true
+  },
+
+  now() {
+    return this.$app.$def.container.clock.now()
+  },
+
+  // --- card -----------------------------------------------------------------
+  showCurrent() {
+    var item = this.session.current(this.now())
+    if (!item) {
+      this.finish()
+      return false
+    }
+    var card = item.card
+    this.flipped = false
+    this.front = card.front
+    this.reading = card.reading
+    this.extra = card.extra || ''
+    this.frontSize = fitFontSize(card.front, CARD_TEXT_WIDTH, FRONT_SIZES)
+    var backHeight = this.extra ? BACK_MAX_HEIGHT - EXTRA_HEIGHT : BACK_MAX_HEIGHT
+    var block = fitTextBlock(card.back, CARD_TEXT_WIDTH, backHeight, BACK_SIZES)
+    this.backSize = block.fontSize
+    this.backLines = block.lines
+    this.counter = (this.done + 1) + '/' + this.total
+    this.recall = createRecallTimer(this.now())
+    this.updateBar()
+    this.startTicker()
+    return true
+  },
+
+  setAnim(name, durationMs, done) {
+    var self = this
+    if (this.animTimer) clearTimeout(this.animTimer)
+    this.cardAnim = name
+    this.animating = !!name
+    this.animTimer = setTimeout(function () {
+      self.animTimer = null
+      self.animating = false
+      if (done) done()
+    }, durationMs)
+  },
+
+  /**
+   * New card fades in and slides into the centre: from below after a swipe up,
+   * from above after a swipe down (spacer heights transition, see .spacer).
+   */
+  playCardIn(fromDir) {
+    var self = this
+    if (fromDir === SwipeDirection.UP) {
+      this.spaceTop = SPACE_REST + SPACE_SHIFT
+      this.spaceBottom = 0
+    } else if (fromDir === SwipeDirection.DOWN) {
+      this.spaceTop = 0
+      this.spaceBottom = SPACE_REST + SPACE_SHIFT
+    }
+    this.cardAnim = 'card-hidden'
+    this.animating = true
+    if (this.animTimer) clearTimeout(this.animTimer)
+    // Next tick: drop the hidden class and recentre so opacity/height transition in.
+    this.animTimer = setTimeout(function () {
+      self.spaceTop = SPACE_REST
+      self.spaceBottom = SPACE_REST
+      self.setAnim('', CARD_IN_MS, null)
+    }, 80)
+  },
+
+  onFlip() {
+    if (!this.session || this.busy || this.animating) return
+    var self = this
+    // Seeing the back ends the recall: freeze the clock and the bar.
+    if (this.recall && this.recall.isRunning()) {
+      this.recall.freeze(this.now())
+      this.stopTicker()
+      this.updateBar()
+    }
+    this.setAnim('flip-out', FLIP_HALF_MS, function () {
+      self.flipped = self.session.flip()
+      self.setAnim('', FLIP_HALF_MS, null)
+    })
+  },
+
+  // --- time bar --------------------------------------------------------------
+  startTicker() {
+    var self = this
+    this.stopTicker()
+    this.timer = setInterval(function () { self.updateBar() }, TICK_MS)
+  },
+
+  stopTicker() {
+    if (this.timer) {
+      clearInterval(this.timer)
+      this.timer = null
+    }
+  },
+
+  updateBar() {
+    if (!this.settings || !this.recall) return
+    var s = timeBarState(this.recall.elapsed(this.now()), this.settings)
+    this.barPercent = s.percent
+    this.barColor = s.color
+    this.phaseLabel = s.label + ' · ' + s.seconds + 's'
+  },
+
+  // --- gestures -----------------------------------------------------------
+  // The platform `swipe` event needs a fast flick; touchstart/touchend give us
+  // the same information for slower drags, so both feed `handleGesture`.
+  touchPoint(evt) {
+    var list = (evt && evt.changedTouches && evt.changedTouches.length) ? evt.changedTouches
+      : (evt && evt.touches && evt.touches.length ? evt.touches : null)
+    if (!list) return null
+    var t = list[0]
+    var x = typeof t.clientX === 'number' ? t.clientX : t.pageX
+    var y = typeof t.clientY === 'number' ? t.clientY : t.pageY
+    if (typeof x !== 'number' || typeof y !== 'number') return null
+    return { x: x, y: y }
+  },
+
+  onTouchStart(evt) {
+    this.touchStart = this.touchPoint(evt)
+  },
+
+  onTouchEnd(evt) {
+    var start = this.touchStart
+    var end = this.touchPoint(evt)
+    this.touchStart = null
+    if (!start || !end) return
+    var dx = end.x - start.x
+    var dy = end.y - start.y
+    if (Math.abs(dx) < TAP_MAX_PX && Math.abs(dy) < TAP_MAX_PX) {
+      this.onFlip()
+      return
+    }
+    if (Math.abs(dy) >= SWIPE_MIN_PX && Math.abs(dy) >= Math.abs(dx)) {
+      this.handleGesture(dy < 0 ? SwipeDirection.UP : SwipeDirection.DOWN)
+    } else if (Math.abs(dx) >= SWIPE_MIN_PX) {
+      this.handleGesture(dx > 0 ? SwipeDirection.RIGHT : SwipeDirection.LEFT)
+    }
+  },
+
+  onSwipe(evt) {
+    this.handleGesture(evt && evt.direction)
+  },
+
+  handleGesture(dir) {
+    if (!this.session || this.busy) return
+    var t = this.now()
+    if (t - this.lastGestureAt < GESTURE_DEDUPE_MS) return
+    this.lastGestureAt = t
+    if (dir === SwipeDirection.RIGHT) {
+      this.finish()
+      return
+    }
+    var elapsed = this.recall ? this.recall.elapsed(t) : 0
+    var grade = gradeFromSwipe(dir, elapsed, this.settings)
+    if (grade === null) return
+    this.answer(grade, dir)
+  },
+
+  // --- answer --------------------------------------------------------------
+  // The card turns into a result card (colour + big label) while the answer is
+  // persisted, then fades out and the next card slides in from the swipe side.
+  answer(grade, dir) {
+    var self = this
+    var c = this.$app.$def.container
+    this.busy = true
+    this.stopTicker()
+
+    var name = GRADE_NAMES[grade]
+    this.resultLabel = gradeLabel(grade)
+    this.resultSub = ''
+    this.cardAnim = 'res-' + name
+    this.animating = true
+    if (this.animTimer) clearTimeout(this.animTimer)
+
+    var held = false
+    var settled = false
+    var result = null
+    var failed = false
+    var up = dir === SwipeDirection.UP || (dir !== SwipeDirection.DOWN && grade !== Grade.AGAIN)
+
+    function proceed() {
+      if (!held || !settled) return
+      // keep the result colour while fading out
+      self.setAnim('res-' + name + ' card-hidden', FADE_MS, function () {
+        self.resultLabel = ''
+        self.resultSub = ''
+        self.busy = false
+        if (failed) {
+          if (self.showCurrent()) self.playCardIn(null)
+          return
+        }
+        if (!result) {
+          self.finish()
+          return
+        }
+        self.done++
+        if (result.requeued) self.total++
+        if (self.showCurrent()) self.playCardIn(up ? SwipeDirection.UP : SwipeDirection.DOWN)
+      })
+    }
+
+    this.animTimer = setTimeout(function () {
+      held = true
+      proceed()
+    }, RESULT_HOLD_MS)
+    c.answerCard(this.session, grade).then(function (r) {
+      result = r
+      settled = true
+      if (r) {
+        self.resultSub = 'ôn lại sau ' + formatIntervalShort(r.progress.due - self.now())
+        self.showFeedback(grade, r.progress.due - self.now())
+      }
+      proceed()
+    }).catch(function (e) {
+      console.error('answerCard failed: ' + e)
+      failed = true
+      settled = true
+      proceed()
+    })
+  },
+
+  showFeedback(grade, intervalMs) {
+    var self = this
+    this.feedback = gradeLabel(grade) + ' · ' + formatIntervalShort(intervalMs)
+    this.feedbackColor = PHASE_COLORS[GRADE_NAMES[grade]]
+    if (this.feedbackTimer) clearTimeout(this.feedbackTimer)
+    this.feedbackTimer = setTimeout(function () { self.feedback = '' }, FEEDBACK_MS)
+  },
+
+  finish() {
+    this.stopTicker()
+    var c = this.$app.$def.container
+    var summary = this.session ? this.session.summary() : null
+    this.leave(function () {
+      if (summary && summary.answered > 0) {
+        c.lastSummary = summary
+        router.replace({ uri: '/pages/summary' })
+      } else {
+        router.back()
+      }
+    })
+  }
+}
+</script>

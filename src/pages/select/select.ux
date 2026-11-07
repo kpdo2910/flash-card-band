@@ -1,0 +1,196 @@
+<template>
+  <div class="page {{ pageAnim }}" @swipe="onSwipe">
+    <div class="safe-top"></div>
+    <text class="title">{{ title }}</text>
+    <text class="unit">{{ unit }}</text>
+
+    <!-- Native wheel: the same widget the band's own apps use. Created only
+         once the options are known, with a static size class: changing a
+         picker's font size after creation hangs the Vela renderer. -->
+    <block if="{{ loaded }}">
+      <block if="{{ bigSize === 46 }}">
+        <picker class="wheel wheel-46" type="text" range="{{ labels }}" selected="{{ index }}" @change="onPick"></picker>
+      </block>
+      <block elif="{{ bigSize === 40 }}">
+        <picker class="wheel wheel-40" type="text" range="{{ labels }}" selected="{{ index }}" @change="onPick"></picker>
+      </block>
+      <block elif="{{ bigSize === 34 }}">
+        <picker class="wheel wheel-34" type="text" range="{{ labels }}" selected="{{ index }}" @change="onPick"></picker>
+      </block>
+      <block elif="{{ bigSize === 28 }}">
+        <picker class="wheel wheel-28" type="text" range="{{ labels }}" selected="{{ index }}" @change="onPick"></picker>
+      </block>
+      <block else>
+        <picker class="wheel wheel-24" type="text" range="{{ labels }}" selected="{{ index }}" @change="onPick"></picker>
+      </block>
+    </block>
+    <div class="wheel" if="{{ !loaded }}"></div>
+
+    <div class="confirm {{ confirmAnim }}" @click="confirm">
+      <text class="arrow">→</text>
+    </div>
+  </div>
+</template>
+
+<style>
+.page {
+  width: 212px;
+  height: 520px;
+  flex-direction: column;
+  align-items: center;
+  background-color: #000000;
+  opacity: 1;
+  transition-property: opacity;
+  transition-duration: 180ms;
+  transition-timing-function: ease-in-out;
+}
+.page-hidden {
+  opacity: 0;
+}
+.safe-top {
+  width: 212px;
+  height: 40px;
+}
+.title {
+  width: 190px;
+  height: 26px;
+  font-size: 18px;
+  color: #ffffff;
+  text-align: center;
+}
+.unit {
+  width: 190px;
+  height: 22px;
+  font-size: 14px;
+  color: #8e8e93;
+  text-align: center;
+}
+.wheel {
+  width: 212px;
+  height: 230px;
+  margin-top: 6px;
+  color: #8e8e93;
+  selected-color: #ffffff;
+}
+/* selected / neighbour sizes, picked by wheelFontSizes() from the longest label */
+.wheel-46 { selected-font-size: 46px; font-size: 28px; }
+.wheel-40 { selected-font-size: 40px; font-size: 24px; }
+.wheel-34 { selected-font-size: 34px; font-size: 20px; }
+.wheel-28 { selected-font-size: 28px; font-size: 17px; }
+.wheel-24 { selected-font-size: 24px; font-size: 14px; }
+.confirm {
+  width: 112px;
+  height: 52px;
+  margin-top: 14px;
+  border-radius: 26px;
+  background-color: #1a73e8;
+  justify-content: center;
+  align-items: center;
+  transition-property: background-color, width;
+  transition-duration: 150ms;
+}
+.confirm-pressed {
+  background-color: #0b57c9;
+  width: 104px;
+}
+.arrow {
+  font-size: 30px;
+  color: #ffffff;
+}
+</style>
+
+<script>
+import router from '@system.router'
+import { optionsFor, patchFor, pickerTitleFor, unitFor, selectedIndex, wheelFontSizes } from '../../presentation/settingsOptions.js'
+import { SwipeDirection } from '../../domain/grading/gradingPolicy.js'
+
+export default {
+  protected: {
+    key: ''
+  },
+  private: {
+    title: '',
+    unit: '',
+    options: [],
+    labels: [],
+    index: 0,
+    bigSize: 46,
+    loaded: false,
+    confirmAnim: '',
+    pageAnim: 'page-hidden'
+  },
+
+  onInit() {
+    var self = this
+    this.title = pickerTitleFor(this.key)
+    this.unit = unitFor(this.key)
+    this.$app.$def.container.settingsRepository.load().then(function (s) {
+      var opts = optionsFor(self.key, s)
+      var sizes = wheelFontSizes(opts)
+      self.bigSize = sizes.big
+      self.options = opts
+      self.labels = opts.map(function (o) { return o.short })
+      self.index = selectedIndex(opts)
+      self.loaded = true
+    })
+  },
+
+  onShow() {
+    this.fadeIn()
+  },
+
+  onBackPress() {
+    this.cancel()
+    return true
+  },
+
+  /** The wheel settled on a new value. */
+  onPick(e) {
+    if (e && typeof e.newSelected === 'number') this.index = e.newSelected
+  },
+
+  onSwipe(evt) {
+    if (evt && evt.direction === SwipeDirection.RIGHT) this.cancel()
+  },
+
+  // --- page cross-fade -------------------------------------------------------
+  fadeIn() {
+    var self = this
+    this.pageAnim = 'page-hidden'
+    if (this.pageTimer) clearTimeout(this.pageTimer)
+    this.pageTimer = setTimeout(function () { self.pageAnim = '' }, 20)
+  },
+
+  leave(fn) {
+    var self = this
+    if (this.leaving) return
+    this.leaving = true
+    this.pageAnim = 'page-hidden'
+    if (this.pageTimer) clearTimeout(this.pageTimer)
+    this.pageTimer = setTimeout(function () {
+      self.leaving = false
+      fn()
+    }, 170)
+  },
+
+  cancel() {
+    this.leave(function () { router.back() })
+  },
+
+  /** Saves the centred value and returns to the settings list. */
+  confirm() {
+    var self = this
+    if (this.leaving || !this.options.length) return
+    var opt = this.options[this.index] || this.options[0]
+    var patch = patchFor(this.key, opt.value)
+    this.confirmAnim = 'confirm-pressed'
+    if (!patch) {
+      this.cancel()
+      return
+    }
+    this.$app.$def.container.updateSettings(patch).then(function () {
+      self.leave(function () { router.back() })
+    })
+  }
+}
+</script>

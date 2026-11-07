@@ -1,0 +1,151 @@
+<template>
+  <div class="page {{ pageAnim }}" @click="goHome" @swipe="goHome">
+    <text class="title">Xong phiên học</text>
+    <text class="big">{{ answered }}</text>
+    <text class="sub">lượt trả lời · {{ cardsSeen }} thẻ</text>
+
+    <div class="rows">
+      <div class="row">
+        <text class="label easy">Dễ</text>
+        <text class="num">{{ easy }}</text>
+      </div>
+      <div class="row">
+        <text class="label good">Tốt</text>
+        <text class="num">{{ good }}</text>
+      </div>
+      <div class="row">
+        <text class="label hard">Khó</text>
+        <text class="num">{{ hard }}</text>
+      </div>
+      <div class="row">
+        <text class="label again">Quên</text>
+        <text class="num">{{ again }}</text>
+      </div>
+    </div>
+
+    <text class="hint">chạm để về trang chủ</text>
+  </div>
+</template>
+
+<style>
+.page {
+  flex-direction: column;
+  align-items: center;
+  width: 212px;
+  height: 520px;
+  background-color: #000000;
+  padding-top: 48px;
+  opacity: 1;
+  transition-property: opacity;
+  transition-duration: 180ms;
+  transition-timing-function: ease-in-out;
+}
+.page-hidden {
+  opacity: 0;
+}
+.title {
+  font-size: 22px;
+  color: #ffffff;
+}
+.big {
+  font-size: 64px;
+  color: #2ecc71;
+  margin-top: 10px;
+}
+.sub {
+  font-size: 14px;
+  color: #8e8e93;
+}
+.rows {
+  flex-direction: column;
+  width: 160px;
+  margin-top: 20px;
+}
+.row {
+  flex-direction: row;
+  justify-content: space-between;
+  height: 38px;
+  align-items: center;
+}
+.label {
+  font-size: 20px;
+}
+.num {
+  font-size: 20px;
+  color: #ffffff;
+}
+.easy { color: #2ecc71; }
+.good { color: #f1c40f; }
+.hard { color: #e67e22; }
+.again { color: #e74c3c; }
+.hint {
+  font-size: 13px;
+  color: #48484a;
+  margin-top: 24px;
+}
+</style>
+
+<script>
+import router from '@system.router'
+
+export default {
+  private: {
+    answered: 0,
+    cardsSeen: 0,
+    easy: 0,
+    good: 0,
+    hard: 0,
+    again: 0,
+    pageAnim: 'page-hidden'
+  },
+
+  onInit() {
+    var s = this.$app.$def.container.lastSummary
+    if (s) {
+      this.answered = s.answered
+      this.cardsSeen = s.cardsSeen
+      this.easy = s.easy
+      this.good = s.good
+      this.hard = s.hard
+      this.again = s.again
+    }
+  },
+
+  onShow() {
+    this.fadeIn()
+  },
+
+  onBackPress() {
+    this.goHome()
+    return true
+  },
+
+  // --- page cross-fade -------------------------------------------------------
+  fadeIn() {
+    var self = this
+    this.pageAnim = 'page-hidden'
+    if (this.pageTimer) clearTimeout(this.pageTimer)
+    this.pageTimer = setTimeout(function () { self.pageAnim = '' }, 20)
+  },
+
+  leave(fn) {
+    var self = this
+    if (this.leaving) return
+    this.leaving = true
+    this.pageAnim = 'page-hidden'
+    if (this.pageTimer) clearTimeout(this.pageTimer)
+    this.pageTimer = setTimeout(function () {
+      self.leaving = false
+      fn()
+    }, 170)
+  },
+
+  goHome() {
+    var c = this.$app.$def.container
+    this.leave(function () {
+      c.lastSummary = null
+      router.back()
+    })
+  }
+}
+</script>
